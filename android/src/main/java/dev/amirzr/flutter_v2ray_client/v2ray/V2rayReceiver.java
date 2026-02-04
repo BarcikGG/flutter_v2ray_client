@@ -15,6 +15,7 @@ public class V2rayReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         try {
+            Log.d("V2rayReceiver", "onReceive called with action: " + (intent != null ? intent.getAction() : "null"));
             // Validate inputs
             if (intent == null) {
                 Log.w("V2rayReceiver", "Received null intent");
@@ -30,6 +31,8 @@ public class V2rayReceiver extends BroadcastReceiver {
                 Log.w("V2rayReceiver", "vpnStatusSink is null, cannot send status");
                 return;
             }
+            
+            Log.d("V2rayReceiver", "Processing broadcast, vpnStatusSink is available");
 
             ArrayList<String> list = new ArrayList<>();
             String duration = intent.getExtras().getString("DURATION");
@@ -40,14 +43,17 @@ public class V2rayReceiver extends BroadcastReceiver {
             list.add(String.valueOf(intent.getLongExtra("DOWNLOAD_TRAFFIC", 0)));
 
             Object state = intent.getExtras().getSerializable("STATE");
+            String stateStr = "DISCONNECTED";
             if (state != null) {
-                String stateStr = state.toString();
+                stateStr = state.toString();
                 list.add(stateStr.length() > 6 ? stateStr.substring(6) : stateStr);
             } else {
                 list.add("DISCONNECTED");
             }
-
+            
+            Log.d("V2rayReceiver", "Sending status to Flutter: state=" + stateStr + ", list size=" + list.size());
             vpnStatusSink.success(list);
+            Log.d("V2rayReceiver", "✅ Status sent to Flutter successfully");
         } catch (Exception e) {
             Log.e("V2rayReceiver", "onReceive failed", e);
         }

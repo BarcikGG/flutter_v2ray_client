@@ -200,15 +200,18 @@ public final class V2rayCoreManager {
     }
 
     public boolean startCore(final V2rayConfig v2rayConfig) {
+        Log.d(V2rayCoreManager.class.getSimpleName(), "startCore called");
         makeDurationTimer(v2rayServicesListener.getService().getApplicationContext(),
                 v2rayConfig.ENABLE_TRAFFIC_STATICS);
         V2RAY_STATE = AppConfigs.V2RAY_STATES.V2RAY_CONNECTING;
+        Log.d(V2rayCoreManager.class.getSimpleName(), "V2RAY_STATE set to CONNECTING");
         if (!isLibV2rayCoreInitialized) {
             Log.e(V2rayCoreManager.class.getSimpleName(),
                     "startCore failed => LibV2rayCore should be initialize before start.");
             return false;
         }
         if (isV2rayCoreRunning()) {
+            Log.d(V2rayCoreManager.class.getSimpleName(), "Core already running, stopping first");
             stopCore();
         }
         try {
@@ -224,16 +227,21 @@ public final class V2rayCoreManager {
                 Libv2ray.setProtectorServer(server, false);
             } catch (Exception ignored) {
             }
+            Log.d(V2rayCoreManager.class.getSimpleName(), "Calling startLoop()");
             coreController.startLoop(v2rayConfig.V2RAY_FULL_JSON_CONFIG);
+            Log.d(V2rayCoreManager.class.getSimpleName(), "startLoop() completed");
             
             // ИСПРАВЛЕНИЕ: Устанавливаем статус CONNECTED сразу после startLoop
             // startLoop() запускает core, и даже если getIsRunning() еще не обновился,
             // core уже работает. Broadcast будет отправлен через таймер, но также отправляем сразу
             V2RAY_STATE = AppConfigs.V2RAY_STATES.V2RAY_CONNECTED;
+            Log.d(V2rayCoreManager.class.getSimpleName(), "V2RAY_STATE set to CONNECTED");
             
             // ИСПРАВЛЕНИЕ: Отправляем broadcast сразу после установки статуса CONNECTED
             // чтобы Flutter получил уведомление о подключении без задержки
-            sendConnectedBroadcast(v2rayServicesListener.getService().getApplicationContext());
+            Context context = v2rayServicesListener.getService().getApplicationContext();
+            Log.d(V2rayCoreManager.class.getSimpleName(), "Sending connected broadcast, context: " + (context != null ? "not null" : "NULL"));
+            sendConnectedBroadcast(context);
             
             // Небольшая задержка для проверки, что core действительно запустился
             try {
@@ -291,9 +299,11 @@ public final class V2rayCoreManager {
 
     private void sendConnectedBroadcast(Context context) {
         if (context == null) {
+            Log.e(V2rayCoreManager.class.getSimpleName(), "sendConnectedBroadcast: context is NULL!");
             return;
         }
         String packageName = context.getPackageName();
+        Log.d(V2rayCoreManager.class.getSimpleName(), "sendConnectedBroadcast: packageName=" + packageName + ", state=" + V2RAY_STATE);
         Intent connection_info_intent = new Intent(packageName + ".V2RAY_CONNECTION_INFO");
         connection_info_intent.setPackage(packageName);
         connection_info_intent.putExtra("STATE", V2rayCoreManager.getInstance().V2RAY_STATE);
@@ -303,10 +313,11 @@ public final class V2rayCoreManager {
         connection_info_intent.putExtra("UPLOAD_TRAFFIC", totalUpload);
         connection_info_intent.putExtra("DOWNLOAD_TRAFFIC", totalDownload);
         try {
+            Log.d(V2rayCoreManager.class.getSimpleName(), "Sending broadcast: " + connection_info_intent.getAction());
             context.sendBroadcast(connection_info_intent);
-            Log.d(V2rayCoreManager.class.getSimpleName(), "Sent connected broadcast with state: " + V2RAY_STATE);
+            Log.d(V2rayCoreManager.class.getSimpleName(), "✅ Broadcast sent successfully with state: " + V2RAY_STATE);
         } catch (Exception e) {
-            Log.w("V2rayCoreManager", "Failed to send connected broadcast", e);
+            Log.e("V2rayCoreManager", "❌ Failed to send connected broadcast", e);
         }
     }
 
