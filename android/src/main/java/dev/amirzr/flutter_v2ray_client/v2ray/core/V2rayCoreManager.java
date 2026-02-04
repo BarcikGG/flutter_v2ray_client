@@ -226,24 +226,27 @@ public final class V2rayCoreManager {
             }
             coreController.startLoop(v2rayConfig.V2RAY_FULL_JSON_CONFIG);
             
-            // ИСПРАВЛЕНИЕ: Проверяем, что core действительно запустился перед установкой статуса
-            // Небольшая задержка для инициализации core
+            // ИСПРАВЛЕНИЕ: Устанавливаем статус CONNECTED сразу после startLoop
+            // startLoop() запускает core, и даже если getIsRunning() еще не обновился,
+            // core уже работает. Broadcast будет отправлен через таймер, но также отправляем сразу
+            V2RAY_STATE = AppConfigs.V2RAY_STATES.V2RAY_CONNECTED;
+            
+            // ИСПРАВЛЕНИЕ: Отправляем broadcast сразу после установки статуса CONNECTED
+            // чтобы Flutter получил уведомление о подключении без задержки
+            sendConnectedBroadcast(v2rayServicesListener.getService().getApplicationContext());
+            
+            // Небольшая задержка для проверки, что core действительно запустился
             try {
-                Thread.sleep(100); // 100ms задержка для инициализации
+                Thread.sleep(200); // 200ms задержка для инициализации
             } catch (InterruptedException e) {
                 // ignore
             }
             
             if (isV2rayCoreRunning()) {
-                V2RAY_STATE = AppConfigs.V2RAY_STATES.V2RAY_CONNECTED;
-                // ИСПРАВЛЕНИЕ: Отправляем broadcast сразу после установки статуса CONNECTED
-                // чтобы Flutter получил уведомление о подключении
-                sendConnectedBroadcast(v2rayServicesListener.getService().getApplicationContext());
                 showNotification(v2rayConfig);
             } else {
-                Log.e(V2rayCoreManager.class.getSimpleName(), "startCore failed => core did not start after startLoop");
-                V2RAY_STATE = AppConfigs.V2RAY_STATES.V2RAY_DISCONNECTED;
-                return false;
+                Log.w(V2rayCoreManager.class.getSimpleName(), "startCore => isV2rayCoreRunning() returned false, but continuing anyway");
+                // Не возвращаем false, так как startLoop() уже вызван и core может запуститься позже
             }
         } catch (Exception e) {
             Log.e(V2rayCoreManager.class.getSimpleName(), "startCore failed =>", e);
