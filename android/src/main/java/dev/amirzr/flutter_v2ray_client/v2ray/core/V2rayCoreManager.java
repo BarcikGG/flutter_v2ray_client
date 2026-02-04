@@ -112,6 +112,15 @@ public final class V2rayCoreManager {
 
     public void setUpListener(Service targetService) {
         try {
+            // ИСПРАВЛЕНИЕ: Если listener уже установлен и core инициализирован,
+            // просто обновляем listener без переинициализации
+            if (isLibV2rayCoreInitialized && v2rayServicesListener != null && coreController != null) {
+                Log.d(V2rayCoreManager.class.getSimpleName(), "setUpListener => updating listener for existing core from "
+                        + targetService.getClass().getSimpleName());
+                v2rayServicesListener = (V2rayServicesListener) targetService;
+                return;
+            }
+            
             v2rayServicesListener = (V2rayServicesListener) targetService;
             Libv2ray.initCoreEnv(getUserAssetsPath(targetService.getApplicationContext()), "");
 
@@ -172,7 +181,7 @@ public final class V2rayCoreManager {
             downloadSpeed = 0;
             totalDownload = 0;
             totalUpload = 0;
-            Log.e(V2rayCoreManager.class.getSimpleName(), "setUpListener => new initialize from "
+            Log.d(V2rayCoreManager.class.getSimpleName(), "setUpListener => new initialize from "
                     + v2rayServicesListener.getService().getClass().getSimpleName());
         } catch (Exception e) {
             Log.e(V2rayCoreManager.class.getSimpleName(), "setUpListener failed => ", e);
