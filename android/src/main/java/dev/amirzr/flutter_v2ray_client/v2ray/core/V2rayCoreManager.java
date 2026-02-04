@@ -112,13 +112,23 @@ public final class V2rayCoreManager {
 
     public void setUpListener(Service targetService) {
         try {
-            // ИСПРАВЛЕНИЕ: Если listener уже установлен и core инициализирован,
+            // ИСПРАВЛЕНИЕ: Если listener уже установлен, core инициализирован И core запущен,
             // просто обновляем listener без переинициализации
-            if (isLibV2rayCoreInitialized && v2rayServicesListener != null && coreController != null) {
-                Log.d(V2rayCoreManager.class.getSimpleName(), "setUpListener => updating listener for existing core from "
+            // Если core не запущен, нужно переинициализировать
+            boolean isCoreRunning = (coreController != null && coreController.getIsRunning());
+            if (isLibV2rayCoreInitialized && v2rayServicesListener != null && coreController != null && isCoreRunning) {
+                Log.d(V2rayCoreManager.class.getSimpleName(), "setUpListener => updating listener for running core from "
                         + targetService.getClass().getSimpleName());
                 v2rayServicesListener = (V2rayServicesListener) targetService;
                 return;
+            }
+            
+            // Если core был остановлен, сбрасываем флаг инициализации для переинициализации
+            if (isLibV2rayCoreInitialized && !isCoreRunning) {
+                Log.d(V2rayCoreManager.class.getSimpleName(), "setUpListener => core was stopped, reinitializing from "
+                        + targetService.getClass().getSimpleName());
+                isLibV2rayCoreInitialized = false;
+                coreController = null;
             }
             
             v2rayServicesListener = (V2rayServicesListener) targetService;
@@ -245,11 +255,15 @@ public final class V2rayCoreManager {
                 if (coreController != null) {
                     coreController.stopLoop();
                 }
-                v2rayServicesListener.stopService();
+                if (v2rayServicesListener != null) {
+                    v2rayServicesListener.stopService();
+                }
                 Log.e(V2rayCoreManager.class.getSimpleName(), "stopCore success => v2ray core stopped.");
             } else {
                 Log.e(V2rayCoreManager.class.getSimpleName(), "stopCore failed => v2ray core not running.");
             }
+            // ИСПРАВЛЕНИЕ: Не сбрасываем isLibV2rayCoreInitialized здесь, так как это может быть нужно
+            // для повторного подключения. Сброс происходит в setUpListener если core не запущен.
             sendDisconnectedBroadCast();
         } catch (Exception e) {
             Log.e(V2rayCoreManager.class.getSimpleName(), "stopCore failed =>", e);
